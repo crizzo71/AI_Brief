@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://www.promptengineering.org/context-engineering-for-llms/",
+    "rating": 5,
+    "topic": "Context Engineering"
+  },
+  {
+    "url": "https://www.linkedin.com/pulse/context-engineering-secret-sauce-llm-applications-adrian-h-s-goh-ph-d--4wzsc/",
+    "rating": 4,
+    "topic": "Context Engineering"
+  },
+  {
+    "url": "https://www.intercom.com/blog/agentic-ai/",
+    "rating": 3,
+    "topic": "Agentic Engineering"
+  },
+  {
+    "url": "https://www.forbes.com/sites/forbestechcouncil/2023/08/29/the-rise-of-agentic-ai-and-the-future-of-automation/",
+    "rating": 2,
+    "topic": "Agentic Engineering"
+  },
+  {
+    "url": "https://www.wired.com/story/what-is-generative-ai/",
+    "rating": 1,
+    "topic": "Generative AI"
+  },
+  {
+    "url": "https://www.mckinsey.com/featured-insights/mckinsey-explainers/what-is-generative-ai",
+    "rating": 5,
+    "topic": "Generative AI"
+  },
+  {
+    "url": "https://www.coursera.org/articles/machine-learning",
+    "rating": 4,
+    "topic": "Machine Learning"
+  },
+  {
+    "url": "https://www.ibm.com/topics/machine-learning",
+    "rating": 3,
+    "topic": "Machine Learning"
+  }
+]

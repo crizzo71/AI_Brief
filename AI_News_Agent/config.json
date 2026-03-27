@@ -1,0 +1,26 @@
+{
+  "user_email": "your_email@example.com",
+  "search_topics": [
+    "Agentic Engineering",
+    "Context Engineering",
+    "Generative AI",
+    "Machine Learning"
+  ],
+  "preferred_sources": [
+    "technologyreview.com",
+    "hbr.org",
+    "anthropic.com",
+    "meta.ai",
+    "deepmind.google",
+    "openai.com",
+    "blog.google",
+    "techcrunch.com",
+    "wired.com",
+    "wsj.com"
+  ],
+  "keyword_weights": {
+    "positive": {},
+    "negative": {}
+  },
+  "source_rankings": {}
+}
