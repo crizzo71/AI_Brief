@@ -3,6 +3,7 @@ import os
 import base64
 import re
 import string
+import sys
 from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -21,13 +22,12 @@ from newspaper import Article, ArticleException
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
 # --- Keyword Extraction Setup ---
-# A simple list of common English stop words. A more robust solution might use a library like NLTK.
 STOP_WORDS = set(['a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', "aren't", 'as', 'at', 'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by', 'can', "can't", 'cannot', 'com', 'could', "couldn't", 'did', "didn't", 'do', 'does', "doesn't", 'doing', "don't", 'down', 'during', 'each', 'few', 'for', 'from', 'further', 'had', "hadn't", 'has', "hasn't", 'have', "haven't", 'having', 'he', "he'd", "he'll", "he's", 'her', 'here', "here's", 'hers', 'herself', 'him', 'himself', 'his', 'how', "how's", 'i', "i'd", "i'll", "i'm", "i've", 'if', 'in', 'into', 'is', "isn't", 'it', "it's", 'its', 'itself', 'let', "let's", 'me', 'more', 'most', "mustn't", 'my', 'myself', 'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own', 'r', 's', 'same', 'shall', "shan't", 'she', "she'd", "she'll", "she's", 'should', "shouldn't", 'so', 'some', 'such', 't', 'than', 'that', "that's", 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', "there's", 'these', 'they', "they'd", "they'll", "they're", "they've", 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very', 'was', "wasn't", 'we', "we'd", "we'll", "we're", "we've", 'were', "weren't", 'what', "what's", 'when', "when's", 'where', "where's", 'which', 'while', 'who', "who's", 'whom', 'why', "why's", 'with', "won't", 'would', "wouldn't", 'www', 'you', "you'd", "you'll", "you're", "you've", 'your', 'yours', 'yourself', 'yourselves'])
 
 def extract_keywords_from_text(text, num_keywords=5):
     """Extracts the most common keywords from a piece of text."""
     text = text.lower()
-    text = re.sub(f'[{re.escape(string.punctuation)}]', '', text) # Remove punctuation
+    text = re.sub(f'[{re.escape(string.punctuation)}]', '', text)
     words = text.split()
     words = [word for word in words if word not in STOP_WORDS and not word.isdigit()]
     return [word for word, _ in Counter(words).most_common(num_keywords)]
@@ -48,36 +48,57 @@ def save_config(config):
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2)
 
-def gather_news_for_topic(topic, newsapi, sources, keywords):
-    """Gathers news articles for a single topic, using keyword weights."""
+def gather_news_for_topic(topic, newsapi, sources, other_domains, keywords, days):
+    """Gathers news articles for a single topic from multiple query types."""
     print(f"Searching for news on: {topic}")
     
-    # Build a more intelligent query
     positive_keywords = ' OR '.join([f'"{k}"' for k, w in keywords['positive'].items() if w > 0])
     negative_keywords = ' NOT '.join([f'"{k}"' for k, w in keywords['negative'].items() if w > 0])
     
-    query = f'"{topic}"'
+    base_query = f'"{topic}"'
     if positive_keywords:
-        query += f' AND ({positive_keywords})'
+        base_query += f' AND ({positive_keywords})'
     if negative_keywords:
-        query += f' AND (NOT {negative_keywords})'
+        base_query += f' AND (NOT {negative_keywords})'
 
+    from_date = datetime.now() - timedelta(days=days)
+    urls = set()
+
+    # Query 1: Search within the official NewsAPI sources
     try:
-        all_articles = newsapi.get_everything(
-            q=query,
+        source_articles = newsapi.get_everything(
+            q=base_query,
             sources=','.join(sources),
             language='en',
             sort_by='relevancy',
+            from_param=from_date.strftime('%Y-%m-%d'),
             page_size=5
         )
-        return {topic: [article['url'] for article in all_articles['articles']]}
+        for article in source_articles['articles']:
+            urls.add(article['url'])
     except Exception as e:
-        print(f"Error fetching news for {topic} with query '{query}': {e}")
-        return {topic: []}
+        print(f"Error fetching from NewsAPI sources for {topic}: {e}")
 
-def gather_news(topics, sources, keywords):
+    # Query 2: Search across the other specified domains
+    try:
+        domain_query = f'{base_query} AND ({ " OR ".join(other_domains) })'
+        domain_articles = newsapi.get_everything(
+            q=domain_query,
+            language='en',
+            sort_by='relevancy',
+            from_param=from_date.strftime('%Y-%m-%d'),
+            page_size=5
+        )
+        for article in domain_articles['articles']:
+            urls.add(article['url'])
+    except Exception as e:
+        print(f"Error fetching from other domains for {topic}: {e}")
+
+    return {topic: list(urls)}
+
+def gather_news(topics, sources, other_domains, keywords, days=7):
     """Gathers news articles for the given topics in parallel."""
-    print("Gathering news...")
+    print(f"Gathering news from the last {days} days...")
     news_api_key = os.getenv('NEWS_API_KEY')
     if not news_api_key:
         print("\n--- NewsAPI key not found ---")
@@ -86,7 +107,7 @@ def gather_news(topics, sources, keywords):
     newsapi = NewsApiClient(api_key=news_api_key)
     articles = {}
     with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_topic = {executor.submit(gather_news_for_topic, topic, newsapi, sources, keywords): topic for topic in topics}
+        future_to_topic = {executor.submit(gather_news_for_topic, topic, newsapi, sources, other_domains, keywords, days): topic for topic in topics}
         for future in as_completed(future_to_topic):
             try:
                 articles.update(future.result())
@@ -95,17 +116,15 @@ def gather_news(topics, sources, keywords):
     return articles
 
 def process_article(url):
-    """Downloads, parses, and prepares an article for summarization. Returns text and title."""
+    """Downloads, parses, and prepares an article for summarization."""
     print(f"Processing: {url}")
     try:
         article = Article(url)
         article.download()
         article.parse()
         
-        # --- Summarization Placeholder ---
         summary = f"Placeholder summary for: {article.title}\n(Full text has been extracted and is ready for summarization)"
-        # --- End of Placeholder ---
-
+        
         return {"url": url, "summary": summary, "text": article.text, "title": article.title}
     except (ArticleException, Exception) as e:
         print(f"Could not process article at {url}. Error: {e}")
@@ -135,7 +154,7 @@ def generate_report(summaries):
     for topic, summary_list in summaries.items():
         report_content += f"## {topic}\n\n"
         for item in summary_list:
-            if item.get("title"): # Only include successfully processed articles
+            if item.get("title"):
                 report_content += f"- **Source:** {item['url']}\n"
                 report_content += f"  - **Summary:** {item['summary']}\n\n"
     
@@ -161,11 +180,10 @@ def get_feedback(summaries):
     rating_idx = 0
     for topic, summary_list in summaries.items():
         for item in summary_list:
-            if item.get("title"): # Only rate successfully processed articles
+            if item.get("title"):
                 if rating_idx < len(feedback_ratings):
                     rating = feedback_ratings[rating_idx]
                     if rating > 0:
-                        # Pass the full text of the article into the rating object for keyword analysis
                         ratings.append({"url": item['url'], "rating": rating, "topic": topic, "text": item['text']})
                     print(f"Rated '{item['url']}' with {rating}")
                     rating_idx += 1
@@ -191,7 +209,6 @@ def update_config_with_feedback(ratings):
         print("No ratings found. Skipping config update.")
         return
         
-    # --- Topic Sorting Logic ---
     topic_ratings = defaultdict(lambda: {'total': 0, 'count': 0})
     for rating in ratings:
         topic_ratings[rating['topic']]['total'] += rating['rating']
@@ -204,20 +221,19 @@ def update_config_with_feedback(ratings):
     else:
         print("Search topics are already in preferred order.")
 
-    # --- Keyword Weighting Logic ---
     print("Updating keyword weights...")
     for rating in ratings:
         if not rating.get('text'):
             continue
         
         keywords = extract_keywords_from_text(rating['text'])
-        if rating['rating'] >= 4: # Positive feedback
+        if rating['rating'] >= 4:
             for kw in keywords:
-                config['keyword_weights']['negative'].pop(kw, None) # Remove from negative if present
+                config['keyword_weights']['negative'].pop(kw, None)
                 config['keyword_weights']['positive'][kw] = config['keyword_weights']['positive'].get(kw, 0) + 1
-        elif rating['rating'] <= 2: # Negative feedback
+        elif rating['rating'] <= 2:
             for kw in keywords:
-                config['keyword_weights']['positive'].pop(kw, None) # Remove from positive if present
+                config['keyword_weights']['positive'].pop(kw, None)
                 config['keyword_weights']['negative'][kw] = config['keyword_weights']['negative'].get(kw, 0) + 1
     
     save_config(config)
@@ -225,7 +241,6 @@ def update_config_with_feedback(ratings):
 
 def send_email_with_gmail_api(report_content, recipient_email):
     """Create and send an email using the Gmail API."""
-    # (This function remains unchanged)
     creds = None
     script_dir = os.path.dirname(os.path.abspath(__file__))
     token_path = os.path.join(script_dir, 'token.json')
@@ -255,13 +270,23 @@ def send_email_with_gmail_api(report_content, recipient_email):
 
 def main():
     """Main function to run the AI news agent."""
+    if len(sys.argv) > 1:
+        try:
+            days = int(sys.argv[1])
+        except ValueError:
+            print("Usage: python3 agent.py [number_of_days]")
+            sys.exit(1)
+    else:
+        days = 7
+
     config = load_config()
     topics = config.get('search_topics', [])
     sources = config.get('preferred_sources', [])
+    other_domains = config.get('other_domains', [])
     keywords = config.get('keyword_weights', {"positive": {}, "negative": {}})
     recipient_email = config.get('user_email')
     
-    articles = gather_news(topics, sources, keywords)
+    articles = gather_news(topics, sources, other_domains, keywords, days=days)
     if not articles:
         print("No articles found. Exiting.")
         return
@@ -271,10 +296,10 @@ def main():
     
     send_email_with_gmail_api(report_content, recipient_email)
     
-    ratings = get_feedback(summaries)
-    if ratings:
-        save_ratings(ratings)
-        update_config_with_feedback(ratings)
+    # ratings = get_feedback(summaries)
+    # if ratings:
+    #     save_ratings(ratings)
+    #     update_config_with_feedback(ratings)
 
 if __name__ == "__main__":
     main()
