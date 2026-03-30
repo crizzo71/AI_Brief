@@ -7,16 +7,20 @@
     "Machine Learning"
   ],
   "preferred_sources": [
-    "technologyreview.com",
+    "techcrunch",
+    "wired",
+    "the-wall-street-journal",
+    "the-verge",
+    "ars-technica",
+    "mit-technology-review"
+  ],
+  "other_domains": [
     "hbr.org",
     "anthropic.com",
     "meta.ai",
     "deepmind.google",
     "openai.com",
-    "blog.google",
-    "techcrunch.com",
-    "wired.com",
-    "wsj.com"
+    "blog.google"
   ],
   "keyword_weights": {
     "positive": {},

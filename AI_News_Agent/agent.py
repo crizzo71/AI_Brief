@@ -64,7 +64,6 @@ def gather_news_for_topic(topic, newsapi, sources, other_domains, keywords, days
     from_date = datetime.now() - timedelta(days=days)
     urls = set()
 
-    # Query 1: Search within the official NewsAPI sources
     try:
         source_articles = newsapi.get_everything(
             q=base_query,
@@ -79,7 +78,6 @@ def gather_news_for_topic(topic, newsapi, sources, other_domains, keywords, days
     except Exception as e:
         print(f"Error fetching from NewsAPI sources for {topic}: {e}")
 
-    # Query 2: Search across the other specified domains
     try:
         domain_query = f'{base_query} AND ({ " OR ".join(other_domains) })'
         domain_articles = newsapi.get_everything(
@@ -94,7 +92,7 @@ def gather_news_for_topic(topic, newsapi, sources, other_domains, keywords, days
     except Exception as e:
         print(f"Error fetching from other domains for {topic}: {e}")
 
-    return {topic: list(urls)}
+    return {{topic: list(urls)}}
 
 def gather_news(topics, sources, other_domains, keywords, days=7):
     """Gathers news articles for the given topics in parallel."""
@@ -125,10 +123,10 @@ def process_article(url):
         
         summary = f"Placeholder summary for: {article.title}\n(Full text has been extracted and is ready for summarization)"
         
-        return {"url": url, "summary": summary, "text": article.text, "title": article.title}
+        return {{"url": url, "summary": summary, "text": article.text, "title": article.title}}
     except (ArticleException, Exception) as e:
         print(f"Could not process article at {url}. Error: {e}")
-        return {"url": url, "summary": "Could not process or summarize this article.", "text": "", "title": ""}
+        return {{"url": url, "summary": "Could not process or summarize this article.", "text": "", "title": ""}}
 
 def process_and_summarize_articles(articles):
     """Processes and summarizes the content of the given articles in parallel."""
@@ -148,96 +146,121 @@ def process_and_summarize_articles(articles):
     return summaries
 
 def generate_report(summaries):
-    """Generates a report from the summaries."""
+    """Generates a report with feedback placeholders and saves article data."""
     print("Generating report...")
     report_content = f"# AI News Report - {datetime.now().strftime('%Y-%m-%d')}\n\n"
     for topic, summary_list in summaries.items():
-        report_content += f"## {topic}\n\n"
+        report_content += f"## {topic} [ ]\n\n"
         for item in summary_list:
             if item.get("title"):
-                report_content += f"- **Source:** {item['url']}\n"
+                report_content += f"- [ ] **Source:** {item['url']}\n"
                 report_content += f"  - **Summary:** {item['summary']}\n\n"
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    
     report_path = os.path.join(script_dir, 'report.md')
     with open(report_path, 'w') as f:
         f.write(report_content)
     print(f"Report generated: {report_path}")
+    
+    data_path = os.path.join(script_dir, 'report_data.json')
+    with open(data_path, 'w') as f:
+        json.dump(summaries, f, indent=2)
+    print(f"Report data saved for feedback: {data_path}")
+    
     return report_content
 
-def get_feedback(summaries):
-    """Gets feedback from the user on the generated report."""
-    print("\n--- Reading feedback from feedback.txt ---")
-    ratings = []
+# --- Feedback Processing (New System) ---
+
+def read_feedback_from_report():
+    """Reads the +/- feedback from the last report.md file."""
+    print("\n--- Reading feedback from previous report ---")
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    feedback_path = os.path.join(script_dir, 'feedback.txt')
-    if not os.path.exists(feedback_path):
-        print("feedback.txt not found. Skipping feedback.")
-        return []
-    with open(feedback_path, 'r') as f:
-        feedback_ratings = [int(line.strip()) for line in f.readlines()]
+    report_path = os.path.join(script_dir, 'report.md')
+    data_path = os.path.join(script_dir, 'report_data.json')
+
+    if not os.path.exists(report_path) or not os.path.exists(data_path):
+        print("No previous report found to process feedback from.")
+        return None
+
+    with open(report_path, 'r') as f:
+        report_content = f.read()
     
-    rating_idx = 0
-    for topic, summary_list in summaries.items():
-        for item in summary_list:
-            if item.get("title"):
-                if rating_idx < len(feedback_ratings):
-                    rating = feedback_ratings[rating_idx]
-                    if rating > 0:
-                        ratings.append({"url": item['url'], "rating": rating, "topic": topic, "text": item['text']})
-                    print(f"Rated '{item['url']}' with {rating}")
-                    rating_idx += 1
-                else:
-                    break
-    return ratings
+    with open(data_path, 'r') as f:
+        report_data = json.load(f)
 
-def save_ratings(ratings):
-    """Saves the user's ratings to a file, excluding the large text field."""
-    ratings_to_save = [{k: v for k, v in r.items() if k != 'text'} for r in ratings]
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    ratings_path = os.path.join(script_dir, 'ratings.json')
-    with open(ratings_path, 'w') as f:
-        json.dump(ratings_to_save, f, indent=2)
-    print(f"Ratings saved to {ratings_path}")
+    # Create a quick lookup map from URL to full article data
+    url_to_data_map = {}
+    for topic, articles in report_data.items():
+        for article in articles:
+            url_to_data_map[article['url']] = article
 
-def update_config_with_feedback(ratings):
-    """Updates the config based on user feedback, including keyword weights."""
-    print("\n--- Updating config with feedback ---")
+    feedback = {"articles": [], "topics": {}}
+
+    # Regex to find feedback markers and associated content
+    topic_regex = re.compile(r"##\s(.+?)\s\[([+-])\]")
+    article_regex = re.compile(r"-\s\[([+-])\]\s\*\*Source:\*\*\s(https?://[^\s]+)")
+
+    for match in topic_regex.finditer(report_content):
+        topic, vote = match.groups()
+        feedback["topics"][topic.strip()] = vote
+
+    for match in article_regex.finditer(report_content):
+        vote, url = match.groups()
+        if url in url_to_data_map:
+            article_data = url_to_data_map[url]
+            feedback["articles"].append({
+                "url": url,
+                "vote": vote,
+                "text": article_data.get("text", ""),
+                "topic": [t for t, a in report_data.items() if url in [item['url'] for item in a]][0]
+            })
+            
+    print(f"Found feedback for {len(feedback['articles'])} articles and {len(feedback['topics'])} topics.")
+    return feedback
+
+def update_config_with_feedback(feedback):
+    """Updates the config based on feedback from the report."""
+    print("Updating config with new feedback...")
     config = load_config()
     
-    if not ratings:
-        print("No ratings found. Skipping config update.")
+    if not feedback:
+        print("No feedback provided. Skipping config update.")
         return
-        
-    topic_ratings = defaultdict(lambda: {'total': 0, 'count': 0})
-    for rating in ratings:
-        topic_ratings[rating['topic']]['total'] += rating['rating']
-        topic_ratings[rating['topic']]['count'] += 1
-    avg_ratings = {topic: data['total'] / data['count'] for topic, data in topic_ratings.items()}
-    sorted_topics = sorted(config['search_topics'], key=lambda topic: avg_ratings.get(topic, 0), reverse=True)
-    if sorted_topics != config['search_topics']:
-        config['search_topics'] = sorted_topics
-        print("Search topics have been reordered based on your ratings.")
-    else:
-        print("Search topics are already in preferred order.")
 
-    print("Updating keyword weights...")
-    for rating in ratings:
-        if not rating.get('text'):
+    # --- Keyword Weighting Logic ---
+    for article in feedback["articles"]:
+        if not article.get('text'):
             continue
         
-        keywords = extract_keywords_from_text(rating['text'])
-        if rating['rating'] >= 4:
+        keywords = extract_keywords_from_text(article['text'])
+        if article['vote'] == '+':
             for kw in keywords:
                 config['keyword_weights']['negative'].pop(kw, None)
                 config['keyword_weights']['positive'][kw] = config['keyword_weights']['positive'].get(kw, 0) + 1
-        elif rating['rating'] <= 2:
+        elif article['vote'] == '-':
             for kw in keywords:
                 config['keyword_weights']['positive'].pop(kw, None)
                 config['keyword_weights']['negative'][kw] = config['keyword_weights']['negative'].get(kw, 0) + 1
-    
+
+    # --- Topic Sorting Logic ---
+    if feedback["topics"]:
+        current_topics = config['search_topics']
+        liked_topics = {topic for topic, vote in feedback["topics"].items() if vote == '+'}
+        disliked_topics = {topic for topic, vote in feedback["topics"].items() if vote == '-'}
+        
+        # Simple reordering: Liked topics first, then neutral, then disliked
+        new_order = ([t for t in current_topics if t in liked_topics] +
+                     [t for t in current_topics if t not in liked_topics and t not in disliked_topics] +
+                     [t for t in current_topics if t in disliked_topics])
+        
+        config['search_topics'] = new_order
+        print("Search topics have been reordered based on your feedback.")
+
     save_config(config)
-    print("Config updated with new keyword weights.")
+    print("Config updated.")
+
+# --- Email and Main Loop ---
 
 def send_email_with_gmail_api(report_content, recipient_email):
     """Create and send an email using the Gmail API."""
@@ -257,7 +280,7 @@ def send_email_with_gmail_api(report_content, recipient_email):
             token.write(creds.to_json())
     try:
         service = build('gmail', 'v1', credentials=creds)
-        message = MIMEText(report_content)
+        message = MIMEText(report_content, "html") # Send as HTML to render markdown nicely
         message['to'] = recipient_email
         message['subject'] = f"AI News Report - {datetime.now().strftime('%Y-%m-%d')}"
         create_message = {'raw': base64.urlsafe_b64encode(message.as_bytes()).decode()}
@@ -270,6 +293,12 @@ def send_email_with_gmail_api(report_content, recipient_email):
 
 def main():
     """Main function to run the AI news agent."""
+    # --- New Feedback Loop at the Start ---
+    feedback = read_feedback_from_report()
+    if feedback:
+        update_config_with_feedback(feedback)
+    # --- End of New Feedback Loop ---
+
     if len(sys.argv) > 1:
         try:
             days = int(sys.argv[1])
@@ -294,12 +323,8 @@ def main():
     summaries = process_and_summarize_articles(articles)
     report_content = generate_report(summaries)
     
+    # Note: Sending markdown as plain text. For better rendering, an HTML conversion step would be needed.
     send_email_with_gmail_api(report_content, recipient_email)
-    
-    # ratings = get_feedback(summaries)
-    # if ratings:
-    #     save_ratings(ratings)
-    #     update_config_with_feedback(ratings)
 
 if __name__ == "__main__":
     main()
