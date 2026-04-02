@@ -29,7 +29,7 @@ This replaces the current `feedback.txt` (line-order-dependent, fragile). URL-ke
 | 3 | No effect |
 | 1–2 | Extract top keywords → add to `keyword_weights.negative`; remove from positive if present |
 
-Keywords are extracted by simple word frequency (stop-word filtered). Top 5 words per article.
+Keywords are extracted by simple word frequency (stop-word filtered). Top 5 words per article. If `text` is empty (paywall, parse failure), fall back to `snippet` for extraction. If both are empty, skip keyword extraction for that article — the topic rating still counts.
 
 Topic ordering in `config.search_topics` is updated to reflect average rating per topic (highest rated first).
 

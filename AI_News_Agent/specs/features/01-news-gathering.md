@@ -2,7 +2,7 @@
 
 ## What It Does
 
-Queries NewsAPI for recent article URLs across the user's configured topics, filtered by learned keyword preferences. Returns a deduplicated list of URLs per topic.
+Queries NewsAPI for recent article URLs across the user's configured topics, filtered by learned keyword preferences. Returns a deduplicated `dict[url, snippet]` per topic.
 
 ## Source Strategy
 
@@ -41,7 +41,7 @@ News gathering captures both the URL **and the NewsAPI snippet** (`description` 
 
 ## Deduplication
 
-URLs collected in a `set()` — no duplicate URLs within a topic. Cross-topic duplicates are resolved in `build_report()` (first topic wins).
+Results stored in a `dict[url, snippet]` — inserting a duplicate URL is a no-op (first snippet wins). Cross-topic duplicates are resolved in `build_report()` (first topic wins).
 
 ## Failure Handling
 
