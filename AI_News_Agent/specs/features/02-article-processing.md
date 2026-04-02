@@ -16,8 +16,10 @@ The `Summarizer` protocol:
 
 ```python
 class Summarizer(Protocol):
-    def summarize(self, title: str, text: str) -> str: ...
+    def summarize(self, title: str, text: str, snippet: str = "") -> str: ...
 ```
+
+`snippet` is the short description returned by NewsAPI alongside the URL. It is captured during news gathering and stored on `Article`. It gives the summarizer a fallback when full text is unavailable (paywall, parse failure).
 
 ### ClaudeSummarizer
 
@@ -36,13 +38,14 @@ Article:
 ```
 
 - Truncate input to 8000 characters to stay within token limits.
-- If `text` is empty, return `"Full article text unavailable."` without calling the API.
+- If `text` is empty but `snippet` is present, summarize the snippet instead (still a valid LLM call).
+- If both `text` and `snippet` are empty, return `"Full article text unavailable."` without calling the API.
 - If the API call fails, log the error and return `"Summary unavailable."`.
 - Model: configurable via `config.summarization.model` (default: `claude-haiku-4-5-20251001`).
 
 ### PassthroughSummarizer
 
-Returns the article title as the summary. Zero-dependency fallback — useful for testing the rest of the pipeline without an API key.
+Returns the NewsAPI snippet if present, otherwise the title. Zero-dependency fallback — useful for testing the rest of the pipeline without an API key.
 
 ## Concurrency
 

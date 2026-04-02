@@ -35,6 +35,10 @@ Keyword clauses are omitted when empty (fresh config, no feedback yet).
 | `page_size` | 5 |
 | `language` | `en` |
 
+## What Gets Captured
+
+News gathering captures both the URL **and the NewsAPI snippet** (`description` field in the API response) for each article. The snippet is stored on `Article` and used as a fallback by the summarizer when full text cannot be fetched.
+
 ## Deduplication
 
 URLs collected in a `set()` — no duplicate URLs within a topic. Cross-topic duplicates are resolved in `build_report()` (first topic wins).

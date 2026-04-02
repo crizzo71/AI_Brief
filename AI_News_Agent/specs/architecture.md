@@ -79,7 +79,8 @@ Simple dataclasses, no ORM, no database.
 class Article:
     url: str
     title: str
-    text: str
+    text: str       # full body from newspaper3k; empty if paywall/parse failure
+    snippet: str    # short description from NewsAPI response; fallback when text is empty
     summary: str
     topic: str
 
