@@ -32,7 +32,7 @@ Keyword clauses are omitted when empty (fresh config, no feedback yet).
 |-----------|-------|
 | `from_param` | `today - config.days` |
 | `sort_by` | `relevancy` |
-| `page_size` | 5 |
+| `page_size` | 5 (per topic, across both source tiers combined) |
 | `language` | `en` |
 
 ## What Gets Captured

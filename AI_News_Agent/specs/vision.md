@@ -18,10 +18,10 @@ Each stage is simple and independent. The only extension points are:
 
 ## Core Properties
 
-- **Runs on a schedule** — invoked externally (cron, systemd timer). No daemon, no internal scheduler.
+- **Runs on a schedule** — the user sets up a cron job locally. No daemon, no internal scheduler, no cloud infrastructure.
 - **Single user** — configured for one recipient. Not a multi-tenant service.
 - **Resilient** — a failed article, a missing credential, or a bad API call should never crash the whole run. Partial results are fine.
-- **Always produces output** — the file delivery adapter is always on. Even if email fails, the report exists on disk.
+- **Always produces output** — the FileChannel is always on. Even if email fails, the report exists on disk.
 - **Self-improving** — keyword weights in `config.json` accumulate across runs based on user ratings, making future searches progressively more relevant.
 
 ## What Is Currently Missing or Broken

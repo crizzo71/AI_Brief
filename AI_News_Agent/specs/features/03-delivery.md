@@ -17,9 +17,9 @@ Summary text here.
 ---
 ```
 
-- Articles are deduplicated across topics (same URL in two topics appears once, under the first).
+- Articles are deduplicated across topics by `agent.py` before report generation (same URL in two topics appears once, under the first).
 - Topics with zero successful articles are omitted.
-- The `Report` object (date + articles list) is passed to all configured delivery channels.
+- The `Report` object (date + articles list + ordered topics) is passed to all configured delivery channels.
 
 ## Delivery Channels
 
@@ -51,6 +51,6 @@ Channels are instantiated at startup. Each `deliver()` call is wrapped in try/ex
 
 ## Adding a New Channel
 
-1. Create `delivery/mychanel.py` implementing `DeliveryChannel`.
+1. Create `delivery/mychannel.py` implementing `DeliveryChannel`.
 2. Add it to `config.delivery` schema.
 3. Wire it in `agent.py` startup — no other changes needed.
