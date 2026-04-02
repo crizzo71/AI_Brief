@@ -40,7 +40,7 @@ ai_news_agent/
 ├── summarizers/
 │   ├── base.py       # Summarizer protocol
 │   ├── claude.py     # ClaudeSummarizer
-│   └── passthrough.py  # PassthroughSummarizer (returns title only — no LLM fallback)
+│   └── passthrough.py  # PassthroughSummarizer (returns snippet, or title if snippet empty)
 └── delivery/
     ├── base.py       # DeliveryChannel protocol
     ├── file.py       # FileChannel (always-on)
@@ -56,7 +56,7 @@ No `domain/`, no `ports/`, no `adapters/`. Just flat modules and two small plugi
 
 ```python
 class Summarizer(Protocol):
-    def summarize(self, title: str, text: str) -> str: ...
+    def summarize(self, title: str, text: str, snippet: str = "") -> str: ...
 ```
 
 Configured via `config.summarization.provider`. The application selects one summarizer at startup and passes it through the pipeline.
