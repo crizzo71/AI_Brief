@@ -8,7 +8,7 @@ A CLI tool that finds recent articles on topics you care about and presents them
 
 ```
 $ export NEWS_API_KEY=...
-$ uv run agent "Agentic Engineering"
+$ uv run brief "Agentic Engineering"
 ```
 
 Headlines and snippets print to your terminal. No config file. No LLM key. No setup beyond the one env var.
@@ -16,8 +16,8 @@ Headlines and snippets print to your terminal. No config file. No LLM key. No se
 ## The Full Experience
 
 ```
-$ uv run agent init          # interactive config scaffold
-$ uv run agent               # daily run: topics from config, LLM summaries, email delivery
+$ uv run brief init          # interactive config scaffold
+$ uv run brief               # daily run: topics from config, LLM summaries, email delivery
 ```
 
 Over time, rate the articles you liked. The agent adjusts future searches to match your interests.

@@ -12,7 +12,7 @@ Run N:
   save_manifest()  →  run_manifest.json  (url → topic, keywords, snippet)
 
 Between runs:
-  User runs `agent feedback` or manually edits feedback.json
+  User runs `brief rate` (interactive) or manually edits feedback.json
 
 Run N+1:
   apply_feedback()  ←  feedback.json + run_manifest.json
@@ -32,6 +32,7 @@ Written at the end of each run by `save_manifest()`:
     "https://example.com/article": {
       "topic": "Agentic Engineering",
       "keywords": ["agent", "orchestration", "claude", "tool", "reasoning"],
+      "title": "New Framework for Building AI Agents",
       "snippet": "A new approach to building AI agents..."
     }
   }
@@ -51,9 +52,9 @@ If LLM keywords are available, they take priority. Otherwise word-frequency keyw
 
 ## Feedback Input
 
-### `agent feedback` command
+### `brief rate` command
 
-Opens `feedback.json` in `$EDITOR` pre-populated with URLs from the latest `run_manifest.json` (values set to `null`). User replaces `null` with ratings (1–5), saves, exits.
+Interactive rating using `rich`. Shows each article's title and snippet from the last run and prompts for a 1–5 rating. Skippable. See `features/05-cli.md` for the full UX.
 
 ### Manual editing
 
@@ -88,7 +89,7 @@ Both changes are written back to `config.json`. `feedback.json` is deleted after
 
 ## Requires Config
 
-The feedback loop writes to `config.json`. If no config file exists, `apply_feedback()` skips silently — there's nowhere to persist the learned weights. The user should run `agent init` to set up a config before using feedback.
+The feedback loop writes to `config.json`. If no config file exists, `apply_feedback()` skips silently — there's nowhere to persist the learned weights. The user should run `brief init` to set up a config before using feedback.
 
 ## Weight Accumulation
 

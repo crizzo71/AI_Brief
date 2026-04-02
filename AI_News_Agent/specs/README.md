@@ -4,9 +4,9 @@ A CLI tool that finds, summarizes, and delivers AI news. These specs are the sou
 
 ## Quick Overview
 
-**Default experience:** `uv run agent "AI Agents"` → headlines and snippets print to your terminal.
+**Default experience:** `uv run brief "AI Agents"` → headlines and snippets print to your terminal.
 
-**Full experience:** configure topics, LLM summarization, email delivery, and adaptive feedback via `agent init`.
+**Full experience:** configure topics, LLM summarization, email delivery, and adaptive feedback via `brief init`.
 
 ## Spec Index
 
@@ -16,7 +16,7 @@ A CLI tool that finds, summarizes, and delivers AI news. These specs are the sou
 |----------|---------------|
 | [Vision](vision.md) | Purpose, core properties, current gaps |
 | [Architecture](architecture.md) | Pipeline, modules, extension points, NFRs (uv, structlog, rich), resilience rules |
-| [Config](config.md) | Optional config file, `agent init`, schema, env vars, CLI override precedence |
+| [Config](config.md) | Optional config file, `brief init`, schema, env vars, CLI override precedence |
 
 ### Features
 
@@ -26,7 +26,7 @@ A CLI tool that finds, summarizes, and delivers AI news. These specs are the sou
 | [02 — Article Processing](features/02-article-processing.md) | Fetch (parallel) + summarization (sequential) | Passthrough default; Anthropic/OpenAI/Vertex via native SDKs |
 | [03 — Delivery](features/03-delivery.md) | Report format, delivery channels | Stdout default (rich); file/Gmail opt-in |
 | [04 — Feedback Loop](features/04-feedback-loop.md) | Ratings → keyword weights | run_manifest.json persists keywords; feedback.json for ratings |
-| [05 — CLI](features/05-cli.md) | typer commands, args, flags, UX | `agent [TOPICS]`, `agent init`, `agent feedback` |
+| [05 — CLI](features/05-cli.md) | typer commands, args, flags, UX | `brief [TOPICS]`, `brief init`, `brief rate` |
 
 ## Implementation Status
 

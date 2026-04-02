@@ -31,7 +31,7 @@ config.json (if present) + CLI args + env vars
    deliver()            → stdout by default; optional: file, gmail
         │
         ▼
-   save_manifest()      → run_manifest.json (url → topic, keywords, snippet)
+   save_manifest()      → run_manifest.json (url → title, topic, keywords, snippet)
 ```
 
 ## Module Structure

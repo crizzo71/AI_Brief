@@ -6,12 +6,12 @@ The tool works without a config file. The minimum viable invocation is:
 
 ```
 $ export NEWS_API_KEY=...
-$ uv run agent "Agentic Engineering"
+$ uv run brief "Agentic Engineering"
 ```
 
 Config unlocks: persistent topics, keyword weights, LLM summarization, delivery channels, source preferences. CLI args always override config equivalents for the current run.
 
-## `agent init`
+## `brief init`
 
 Interactive scaffold using `rich` prompts. Walks the user through topics, sources, summarization, and delivery. Writes `config.json` to the project directory. See `features/05-cli.md` for the full flow.
 
@@ -80,7 +80,7 @@ Domain names for broader coverage. Passed to the `domains=` parameter of NewsAPI
 How many days back to search. Default: `7`. Max: `30` (NewsAPI free tier lookback limit). Overridden by `--days` CLI flag.
 
 ### `keyword_weights`
-Managed by the feedback loop. Do not edit manually. Both fields start as `{}`. Omitted from `agent init` output — created automatically on first feedback application.
+Managed by the feedback loop. Do not edit manually. Both fields start as `{}`. Omitted from `brief init` output — created automatically on first feedback application.
 
 ### `summarization`
 Omit this section entirely to use PassthroughSummarizer (the default). Only needed when enabling LLM summarization.

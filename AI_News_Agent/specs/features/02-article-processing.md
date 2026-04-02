@@ -34,7 +34,7 @@ class Summarizer(Protocol):
 
 Returns the NewsAPI snippet as the summary (or title if snippet is empty). Returns an empty keyword list — word-frequency extraction provides the keywords instead.
 
-This is the default. It requires no API key, no config, no network calls beyond what's already done. It's what you get when you run `uv run agent "AI Agents"`.
+This is the default. It requires no API key, no config, no network calls beyond what's already done. It's what you get when you run `uv run brief "AI Agents"`.
 
 ### LLM Summarizers
 
