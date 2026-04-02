@@ -45,4 +45,4 @@ Results stored in a `dict[url, snippet]` — inserting a duplicate URL is a no-o
 
 ## Failure Handling
 
-If a NewsAPI call fails (network, rate limit, bad key), log the error and return an empty list for that topic. Do not crash.
+If a NewsAPI call fails (network, rate limit, bad key), log the error and return an empty dict for that topic. Do not crash.

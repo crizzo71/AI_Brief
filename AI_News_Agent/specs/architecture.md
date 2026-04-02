@@ -88,7 +88,7 @@ class Article:
 class Report:
     date: date
     articles: list[Article]   # deduplicated across topics
-    topics: list[str]
+    topics: list[str]         # ordered topic list (from config) — drives section ordering in the report
 ```
 
 `Report` is the artifact that flows into delivery. `Article.text` is in-memory only — not persisted to disk.
@@ -99,7 +99,7 @@ class Report:
 
 ## Resilience Rules
 
-1. A failed article fetch returns a sentinel `Article` with empty `text` and `summary`. It is included in the report only if it has a title; otherwise dropped silently.
+1. A failed article fetch returns a sentinel `Article` with empty `text` and `summary` (the `snippet` from news gathering is preserved). It is included in the report only if it has a title; otherwise dropped silently.
 2. If the summarizer raises, log and return `"Summary unavailable."` — never propagate.
 3. Each delivery channel is wrapped in try/except. Log failures; continue to next channel.
 4. `FileChannel` runs last so other channels have had their chance, but always runs.
