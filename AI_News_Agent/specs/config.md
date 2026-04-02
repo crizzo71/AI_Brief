@@ -58,7 +58,7 @@ Interactive scaffold using `rich` prompts. Walks the user through topics, source
     "gmail": {
       "enabled": false,
       "recipient": "you@example.com"
-    },
+    }
   }
 }
 ```
