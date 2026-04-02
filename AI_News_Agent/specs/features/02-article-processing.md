@@ -1,35 +1,49 @@
-# Feature: Article Processing
+# Feature: Article Processing & Summarization
 
-## Purpose
+## What It Does
 
-Download the full text of each discovered article URL so the agent has real content to summarize — not just the headline/snippet returned by NewsAPI.
+For each URL: download the full article text, pass it to the configured summarizer, return an `Article`. Runs in parallel.
 
-## Behavior
+## Fetch
 
-- For each URL returned by news gathering, download and parse the article using `newspaper3k`.
-- Run all article downloads in parallel (`ThreadPoolExecutor(max_workers=5)`).
-- On failure (network error, paywalled, parse failure), emit a warning and return a sentinel result rather than crashing.
+Uses `newspaper3k` to download and parse each URL. On failure (network error, paywall, parse error), return a sentinel `Article` with empty `title` and `text`. Articles with empty titles are excluded from the report.
 
-## Output Per Article
+`Article.text` is held in memory only — used for summarization and feedback keyword extraction, never written to disk.
+
+## Summarize
+
+The `Summarizer` protocol:
 
 ```python
-{
-    "url": str,       # original URL
-    "title": str,     # extracted article title
-    "text": str,      # full body text (used by summarization and feedback loop)
-    "summary": str,   # produced by summarization step (see feature 03)
-}
+class Summarizer(Protocol):
+    def summarize(self, title: str, text: str) -> str: ...
 ```
 
-Articles that fail to download return `title: ""` and `text: ""` with a placeholder summary. The report generator skips items with empty titles.
+### ClaudeSummarizer
 
-## Failure Handling
+Calls the Anthropic API. Requires `ANTHROPIC_API_KEY` env var.
 
-- Catch `ArticleException` and generic `Exception` — log the URL and error, return the sentinel.
-- Do not propagate exceptions to the thread pool — a single bad URL should not block others.
+Prompt:
+```
+Summarize the following article in 2-4 sentences.
+Focus on what happened, why it matters, and any key organizations or people involved.
+Be concise and factual.
 
-## Notes
+Title: {title}
 
-- `newspaper3k` handles encoding, HTML cleaning, and boilerplate removal automatically.
-- Full `text` is stored in the in-memory result dict and passed to the feedback loop but **not** persisted to disk (intentionally excluded from `ratings.json` due to size).
-- Paywalled articles will produce empty or near-empty `text`. The summarizer should handle this gracefully.
+Article:
+{text[:8000]}
+```
+
+- Truncate input to 8000 characters to stay within token limits.
+- If `text` is empty, return `"Full article text unavailable."` without calling the API.
+- If the API call fails, log the error and return `"Summary unavailable."`.
+- Model: configurable via `config.summarization.model` (default: `claude-haiku-4-5-20251001`).
+
+### PassthroughSummarizer
+
+Returns the article title as the summary. Zero-dependency fallback — useful for testing the rest of the pipeline without an API key.
+
+## Concurrency
+
+Both fetch and summarize happen inside the same `ThreadPoolExecutor` per article. Summarizer implementations must be safe to call from multiple threads (stateless, no shared mutable state).

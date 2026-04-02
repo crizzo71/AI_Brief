@@ -2,41 +2,35 @@
 
 ## What This Is
 
-A **personalized, self-improving AI news digest** delivered to your inbox on a schedule.
+A personal AI news digest delivered to your inbox (or wherever you want it) on a schedule.
 
-The agent fetches articles from curated sources, summarizes them using an LLM, and emails a structured report. Over time it learns your preferences — what topics, sources, and angles you find valuable — and adjusts future searches accordingly.
+The agent searches for recent articles on topics you care about, downloads and summarizes them with an LLM, and delivers a clean report. Over time it learns which articles you found valuable and adjusts future searches accordingly.
 
-## The Core Loop
+## The Pipeline
 
 ```
-Search → Fetch → Summarize → Report → Email → Feedback → Adjust → repeat
+search → fetch → summarize → report → deliver → (feedback → adjust)
 ```
 
-1. **Search**: Query NewsAPI for recent articles across configured topics, weighted by learned keyword preferences
-2. **Fetch**: Download full article text (not just the API snippet) via `newspaper3k`
-3. **Summarize**: Use an LLM to produce concise, meaningful summaries
-4. **Report**: Compile summaries into a structured Markdown document
-5. **Email**: Deliver the report to the user's inbox via Gmail
-6. **Feedback**: User rates articles; ratings are recorded
-7. **Adjust**: Keyword weights and topic ordering are updated based on ratings; next run is smarter
+Each stage is simple and independent. The only extension points are:
+- **Summarizer** — which LLM (or none) to use
+- **Delivery** — where the report goes (file, email, Slack, etc.)
 
-## Who It's For
+## Core Properties
 
-A single user (the owner of the configured `user_email`) who wants a curated, evolving AI news briefing without manually monitoring dozens of publications.
+- **Runs on a schedule** — invoked externally (cron, systemd timer). No daemon, no internal scheduler.
+- **Single user** — configured for one recipient. Not a multi-tenant service.
+- **Resilient** — a failed article, a missing credential, or a bad API call should never crash the whole run. Partial results are fine.
+- **Always produces output** — the file delivery adapter is always on. Even if email fails, the report exists on disk.
+- **Self-improving** — keyword weights in `config.json` accumulate across runs based on user ratings, making future searches progressively more relevant.
 
-## What Makes It Different
+## What Is Currently Missing or Broken
 
-The **adaptive feedback loop**. Most news digests are static. This one observes which articles you rate highly, extracts keywords from their content, and promotes those signals in future searches — while suppressing keywords from articles you found uninteresting. The search query itself becomes a living artifact of your taste.
-
-## What Is Currently Half-Baked
-
-| Component | Status | Gap |
-|-----------|--------|-----|
-| News gathering | Working (with bugs) | `preferred_sources` uses domain names instead of NewsAPI source IDs; `other_domains` key missing from config |
-| Article fetching | Working | None |
-| Summarization | Placeholder | Returns a stub string; LLM call not implemented |
-| Report generation | Working | Minimal formatting; no deduplication |
-| Email delivery | Working (with setup) | Requires manual OAuth credential setup |
-| Feedback ingestion | Implemented, commented out | `feedback.txt` is a stand-in; no interactive UI |
-| Adaptive learning | Implemented, commented out | Works but untested end-to-end; depends on feedback |
-| Scheduling | Not started | Intended to run automatically (e.g., daily cron) |
+| Item | Status |
+|------|--------|
+| LLM summarization | Not implemented — placeholder text only |
+| `preferred_sources` | Wrong format — domain names instead of NewsAPI source IDs |
+| `other_domains` | Missing from config; also uses wrong NewsAPI parameter in code |
+| Feedback loop | Implemented but commented out; blocked on `feedback.txt` fragility |
+| Delivery resilience | Gmail adapter crashes if `credentials.json` is absent |
+| Config validation | None — bad config fails silently or with confusing errors |

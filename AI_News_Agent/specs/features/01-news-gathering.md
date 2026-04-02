@@ -1,66 +1,44 @@
 # Feature: News Gathering
 
-## Purpose
+## What It Does
 
-Discover recent, relevant articles across the user's configured topics, filtered and ranked by learned keyword preferences.
+Queries NewsAPI for recent article URLs across the user's configured topics, filtered by learned keyword preferences. Returns a deduplicated list of URLs per topic.
 
-## Behavior
+## Source Strategy
 
-### Topic Iteration
-- For each topic in `config.search_topics`, run two NewsAPI queries in parallel (across topics; sequential within a topic).
-- Topics are ordered by preference (highest-rated topics first, maintained by the feedback loop).
+Two tiers, both passed to a single `get_everything()` call per topic:
 
-### Query Construction
+- **`preferred_sources`** — NewsAPI source IDs (e.g., `"techcrunch"`, `"wired"`). Passed to the `sources` parameter. Find valid IDs at `newsapi.org/v2/sources`.
+- **`other_domains`** — Domain names (e.g., `"anthropic.com"`). Passed to the `domains` parameter — **not** embedded in the query string.
 
-Each topic produces a base query:
+> **Current bugs to fix:**
+> - Code puts `preferred_sources` in `sources=` but config stores domain names — must be NewsAPI source IDs.
+> - Code embeds `other_domains` in the query string instead of using the `domains=` parameter.
+> - `other_domains` key is missing from `config.json` entirely.
+
+## Query Construction
+
 ```
 "<topic>"
-  AND ("<positive_kw1>" OR "<positive_kw2>" ...)
-  AND (NOT "<negative_kw1>" NOT "<negative_kw2>" ...)
+  [AND ("<pos_kw1>" OR "<pos_kw2>" ...)]
+  [AND (NOT "<neg_kw1>" NOT "<neg_kw2>" ...)]
 ```
 
-Positive/negative keyword clauses are omitted when empty.
+Keyword clauses are omitted when empty (fresh config, no feedback yet).
 
-### Two-Tier Source Strategy
+## Parameters
 
-**Tier 1 — Curated NewsAPI Sources** (`config.preferred_sources`)
-- A list of NewsAPI publisher source IDs (e.g., `"techcrunch"`, `"wired"`, `"the-wall-street-journal"`)
-- Passed to the `sources` parameter of `newsapi.get_everything()`
-- High-trust, high-quality publications
+| Parameter | Value |
+|-----------|-------|
+| `from_param` | `today - config.days` |
+| `sort_by` | `relevancy` |
+| `page_size` | 5 |
+| `language` | `en` |
 
-**Tier 2 — Domain-Expanded Search** (`config.other_domains`)
-- A list of domain names (e.g., `"anthropic.com"`, `"deepmind.google"`)
-- Embedded directly in the query string as additional OR terms
-- Captures sources not indexed as official NewsAPI publishers
+## Deduplication
 
-> **Current bug**: `config.preferred_sources` currently stores domain names, not NewsAPI source IDs. These must be corrected to valid NewsAPI publisher IDs. The `other_domains` key is also missing from `config.json`.
+URLs collected in a `set()` — no duplicate URLs within a topic. Cross-topic duplicates are resolved in `build_report()` (first topic wins).
 
-### Deduplication
-- URLs are collected in a `set()` per topic — no duplicate URLs within a topic.
-- Cross-topic deduplication is not performed (same article may appear under multiple topics).
+## Failure Handling
 
-### Parameters
-- `from_param`: `now - config.days` (default 7 days)
-- `sort_by`: `relevancy`
-- `page_size`: 5 per query (10 URLs max per topic across both tiers)
-- `language`: `en`
-
-## Config Schema (this feature)
-
-```json
-{
-  "search_topics": ["Agentic Engineering", "Context Engineering", ...],
-  "preferred_sources": ["techcrunch", "wired", "mit-technology-review"],
-  "other_domains": ["anthropic.com", "deepmind.google", "openai.com"],
-  "keyword_weights": {
-    "positive": { "keyword": weight_int },
-    "negative": { "keyword": weight_int }
-  }
-}
-```
-
-## Open Questions / Future Work
-
-- Should `page_size` be configurable?
-- Should cross-topic deduplication be added? (Low priority — topics are intentionally distinct)
-- Rate limiting: with many topics, parallel requests may hit NewsAPI rate limits.
+If a NewsAPI call fails (network, rate limit, bad key), log the error and return an empty list for that topic. Do not crash.

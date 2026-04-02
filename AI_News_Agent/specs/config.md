@@ -1,6 +1,6 @@
 # Config Schema
 
-`config.json` is the user-facing configuration file and the persistence store for learned preferences. It is loaded at startup and validated into a typed structure before use.
+`config.json` is loaded and validated at startup by `config.py`. Invalid or missing required fields exit immediately with a clear error message.
 
 ## Full Schema
 
@@ -16,8 +16,6 @@
   "preferred_sources": [
     "techcrunch",
     "wired",
-    "mit-technology-review",
-    "the-wall-street-journal",
     "ars-technica"
   ],
 
@@ -25,88 +23,79 @@
     "anthropic.com",
     "deepmind.google",
     "openai.com",
-    "blog.google",
-    "meta.ai",
     "hbr.org"
   ],
+
+  "days": 7,
 
   "keyword_weights": {
     "positive": {},
     "negative": {}
   },
 
+  "summarization": {
+    "provider": "claude",
+    "model": "claude-haiku-4-5-20251001"
+  },
+
   "delivery": {
-    "file": {
-      "enabled": true,
-      "path": "report.md"
-    },
     "gmail": {
       "enabled": false,
       "recipient": "you@example.com"
     },
     "smtp": {
       "enabled": false,
-      "host": "smtp.example.com",
-      "port": 587,
-      "username": "you@example.com",
       "recipient": "you@example.com"
-    },
-    "slack": {
-      "enabled": false
-    },
-    "webhook": {
-      "enabled": false,
-      "url": "https://example.com/hook"
     }
-  },
-
-  "summarization": {
-    "model": "claude-haiku-4-5-20251001",
-    "max_chars": 8000
-  },
-
-  "days": 7
+  }
 }
 ```
 
 ## Field Reference
 
 ### `search_topics`
-Ordered list of topics to search. Order reflects user preference — higher-rated topics appear first (managed by the feedback loop). At least one topic is required.
+Ordered list of search topics. Topics are re-ordered by the feedback loop (highest-rated first). Required; must be non-empty.
 
 ### `preferred_sources`
-List of **NewsAPI source IDs** (not domain names). Find valid IDs at `https://newsapi.org/v2/sources`. These are queried as the `sources` parameter for high-trust results.
+NewsAPI **source IDs** — not domain names. Look up valid IDs at `newsapi.org/v2/sources`. Passed to the `sources=` parameter. Can be empty `[]`.
+
+> Common ones: `"techcrunch"`, `"wired"`, `"ars-technica"`, `"the-verge"`, `"bloomberg"`, `"reuters"`, `"the-washington-post"`
 
 ### `other_domains`
-List of domain names to include in the broader query string. These supplement the official sources with content from sites not indexed as NewsAPI publishers (e.g., `anthropic.com`).
-
-### `keyword_weights`
-Managed by the feedback loop — do not edit manually unless you understand the effect. Both `positive` and `negative` are `{keyword: int}` maps. Weights are cumulative across runs.
-
-### `delivery`
-At least one delivery adapter must be enabled. `file` is recommended as the always-on baseline. Adapter-specific secrets (passwords, API keys) are read from environment variables, not stored here.
-
-### `summarization`
-Controls the LLM used for article summarization. `model` must be a valid Anthropic model ID. `max_chars` limits input text length to avoid token overflow.
+Domain names for broader coverage. Passed to the `domains=` parameter of NewsAPI (not embedded in the query string). Can be empty `[]`.
 
 ### `days`
-How many days back to search for articles. Default: 7.
+How many days back to search. Default: `7`. Max: `30` (NewsAPI free tier lookback limit).
+
+### `keyword_weights`
+Managed by the feedback loop. Do not edit manually. Both fields start as `{}`.
+
+### `summarization`
+- `provider`: `"claude"` or `"passthrough"`. If `"claude"`, requires `ANTHROPIC_API_KEY` env var.
+- `model`: Any valid Anthropic model ID.
+
+### `delivery`
+File delivery is always on (no config needed). Add `gmail` or `smtp` blocks to enable additional channels. At least `FileChannel` will always run.
+
+- `gmail.enabled`: Requires `credentials.json` in the project directory.
+- `smtp.enabled`: Requires env vars `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`.
 
 ## Environment Variables
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `NEWS_API_KEY` | Yes | NewsAPI authentication |
-| `ANTHROPIC_API_KEY` | Yes (if summarization enabled) | Claude API |
-| `GMAIL_SMTP_PASSWORD` | Yes (if smtp delivery enabled) | SMTP auth |
-| `SLACK_WEBHOOK_URL` | Yes (if slack delivery enabled) | Slack incoming webhook |
+| Variable | Required For |
+|----------|-------------|
+| `NEWS_API_KEY` | Always (news gathering) |
+| `ANTHROPIC_API_KEY` | `summarization.provider = "claude"` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | SMTP delivery |
 
-OAuth credentials for Gmail delivery are file-based (`credentials.json`, `token.json`) and not environment variables.
+Gmail credentials are file-based (`credentials.json`), not env vars.
 
 ## Validation Rules
 
-- `search_topics` must be non-empty.
-- `preferred_sources` entries must match the pattern `[a-z0-9-]+` (NewsAPI source ID format).
-- At least one delivery adapter must have `enabled: true`.
-- `days` must be between 1 and 30 (NewsAPI free tier limit).
-- `summarization.max_chars` must be > 0.
+Checked at startup by `config.py`:
+- `search_topics` is a non-empty list of strings.
+- `days` is an integer between 1 and 30.
+- `summarization.provider` is one of the known values.
+- `NEWS_API_KEY` env var is set.
+- If `summarization.provider == "claude"`, `ANTHROPIC_API_KEY` is set.
+- If any delivery channel is `enabled: true`, its required credentials exist (warn, not error — fallback to file).
